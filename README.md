@@ -6,11 +6,7 @@ The project uses AWS managed services with no continuously running server infras
 
 ---
 
-## Architecture
-
-![Architecture Diagram](screenshots/architecture.png)
-
-### Architecture Flow
+## Architecture Flow
 
 ```text
 User
