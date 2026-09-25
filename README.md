@@ -293,7 +293,7 @@ terraform destroy    # tear it all down cleanly
 
 The Terraform configuration was deployed independently (separate from the original console-built version) and tested end-to-end to confirm it reproduces the same working pipeline:
 
-​```text
+​```
 Apply complete! Resources: 32 added, 0 changed, 0 destroyed.
 
 Outputs:
