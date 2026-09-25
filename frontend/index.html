@@ -1,0 +1,410 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DocPipeline — Serverless Document Processing</title>
+    <style>
+      :root {
+        --ink: #1c1f26;
+        --paper: #fafaf8;
+        --line: #dfe0dc;
+        --accent: #2f6f4e;
+        --accent-soft: #eaf3ee;
+        --muted: #6b6f76;
+        --danger: #a8402f;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--paper);
+        color: var(--ink);
+        font-family:
+          -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        line-height: 1.5;
+      }
+      .wrap {
+        max-width: 640px;
+        margin: 0 auto;
+        padding: 56px 24px 80px;
+      }
+      header h1 {
+        font-size: 1.5rem;
+        font-weight: 650;
+        margin: 0 0 6px;
+        letter-spacing: -0.01em;
+      }
+      header p {
+        color: var(--muted);
+        margin: 0 0 40px;
+        font-size: 0.95rem;
+      }
+      .card {
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 32px;
+        margin-bottom: 20px;
+        background: #fff;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+      .drop {
+        width: 100%;
+        border: 1.5px dashed var(--line);
+        border-radius: 8px;
+        padding: 40px 20px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        cursor: pointer;
+        transition:
+          border-color 0.15s ease,
+          background 0.15s ease;
+      }
+      .drop:hover,
+      .drop.drag {
+        border-color: var(--accent);
+        background: var(--accent-soft);
+      }
+      .drop input {
+        display: none;
+      }
+      .drop-label {
+        font-size: 0.95rem;
+        color: var(--ink);
+      }
+      .drop-sub {
+        font-size: 0.82rem;
+        color: var(--muted);
+        margin-top: 6px;
+      }
+      button {
+        font: inherit;
+        border: none;
+        border-radius: 7px;
+        padding: 10px 22px;
+        background: var(--accent);
+        color: #fff;
+        cursor: pointer;
+        font-size: 0.92rem;
+        margin-top: 18px;
+        align-self: center;
+      }
+      button:disabled {
+        background: var(--line);
+        color: var(--muted);
+        cursor: not-allowed;
+      }
+      .status {
+        width: 100%;
+        margin-top: 18px;
+        padding-top: 16px;
+        border-top: 1px solid var(--line);
+        font-size: 0.88rem;
+        display: none;
+        justify-content: center;
+      }
+      .status.show {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+      }
+      .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--muted);
+        flex-shrink: 0;
+      }
+      .dot.busy {
+        background: #c99a2e;
+        animation: pulse 1s infinite ease-in-out;
+      }
+      .dot.done {
+        background: var(--accent);
+      }
+      .dot.fail {
+        background: var(--danger);
+      }
+      @keyframes pulse {
+        50% {
+          opacity: 0.35;
+        }
+      }
+
+      .result {
+        display: none;
+        width: 100%;
+        margin-top: 18px;
+        padding-top: 18px;
+        border-top: 1px solid var(--line);
+      }
+      .result.show {
+        display: block;
+      }
+      .result dl {
+        display: grid;
+        grid-template-columns: 90px 1fr;
+        gap: 10px 12px;
+        margin: 0;
+        font-size: 0.88rem;
+      }
+      .result dt {
+        color: var(--muted);
+      }
+      .result dd {
+        margin: 0;
+        word-break: break-word;
+        text-align: left;
+      }
+      .extracted {
+        margin-top: 16px;
+        padding: 14px;
+        background: var(--paper);
+        border: 1px solid var(--line);
+        border-radius: 7px;
+        font-size: 0.85rem;
+        line-height: 1.55;
+        white-space: pre-wrap;
+        text-align: left;
+      }
+
+      .recent h2 {
+        font-size: 0.78rem;
+        text-transform: none;
+        color: var(--muted);
+        font-weight: 600;
+        margin: 0 0 14px;
+      }
+      .row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px 0;
+        border-bottom: 1px solid var(--line);
+        font-size: 0.87rem;
+      }
+      .row:last-child {
+        border-bottom: none;
+      }
+      .row-name {
+        color: var(--ink);
+      }
+      .tag {
+        font-size: 0.75rem;
+        padding: 2px 8px;
+        border-radius: 100px;
+      }
+      .tag.completed {
+        background: var(--accent-soft);
+        color: var(--accent);
+      }
+      .tag.failed {
+        background: #fbeae7;
+        color: var(--danger);
+      }
+      .tag.processing {
+        background: #fdf3e1;
+        color: #92671a;
+      }
+
+      footer {
+        margin-top: 40px;
+        font-size: 0.78rem;
+        color: var(--muted);
+        text-align: center;
+      }
+      footer a {
+        color: var(--muted);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <header>
+        <h1>DocPipeline</h1>
+        <p>
+          Upload a document. A serverless pipeline on AWS extracts its contents
+          automatically — no server running in between.
+        </p>
+      </header>
+
+      <div class="card">
+        <label class="drop" id="dropZone">
+          <input type="file" id="fileInput" accept="image/*,.pdf" />
+          <div class="drop-label">Click to choose a file, or drag one here</div>
+          <div class="drop-sub">Images or PDFs</div>
+        </label>
+        <button id="uploadBtn" disabled>Upload &amp; process</button>
+
+        <div class="status" id="status">
+          <span class="dot" id="statusDot"></span>
+          <span id="statusText"></span>
+        </div>
+
+        <div class="result" id="result">
+          <div class="extracted-wrap">
+            <dl>
+              <dt>File</dt>
+              <dd id="rFile"></dd>
+              <dt>Size</dt>
+              <dd id="rSize"></dd>
+              <dt>Status</dt>
+              <dd id="rStatus"></dd>
+            </dl>
+            <div class="extracted" id="rText"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card recent">
+        <h2>Recently processed</h2>
+        <div id="recentList"></div>
+      </div>
+
+      <footer>
+        S3 → Lambda → DynamoDB, served through API Gateway.
+        <a href="#" id="refreshLink">Refresh list</a>
+      </footer>
+    </div>
+
+    <script>
+      const API_BASE ="https://mcuaq825kk.execute-api.ap-south-1.amazonaws.com";
+
+      const fileInput = document.getElementById("fileInput");
+      const dropZone = document.getElementById("dropZone");
+      const uploadBtn = document.getElementById("uploadBtn");
+      const status = document.getElementById("status");
+      const statusDot = document.getElementById("statusDot");
+      const statusText = document.getElementById("statusText");
+      const result = document.getElementById("result");
+      const recentList = document.getElementById("recentList");
+
+      let selectedFile = null;
+
+      fileInput.addEventListener("change", () => {
+        selectedFile = fileInput.files[0] || null;
+        uploadBtn.disabled = !selectedFile;
+        dropZone.querySelector(".drop-label").textContent = selectedFile
+          ? selectedFile.name
+          : "Click to choose a file, or drag one here";
+      });
+
+      ["dragover", "dragenter"].forEach((evt) =>
+        dropZone.addEventListener(evt, (e) => {
+          e.preventDefault();
+          dropZone.classList.add("drag");
+        }),
+      );
+      ["dragleave", "drop"].forEach((evt) =>
+        dropZone.addEventListener(evt, (e) => {
+          e.preventDefault();
+          dropZone.classList.remove("drag");
+        }),
+      );
+      dropZone.addEventListener("drop", (e) => {
+        if (e.dataTransfer.files.length) {
+          fileInput.files = e.dataTransfer.files;
+          fileInput.dispatchEvent(new Event("change"));
+        }
+      });
+
+      function setStatus(state, text) {
+        status.classList.add("show");
+        statusDot.className = "dot " + state;
+        statusText.textContent = text;
+      }
+
+      uploadBtn.addEventListener("click", async () => {
+        if (!selectedFile) return;
+        uploadBtn.disabled = true;
+        result.classList.remove("show");
+        setStatus("busy", "Requesting upload permission…");
+
+        try {
+          const urlRes = await fetch(
+            `${API_BASE}/upload-url?file_name=${encodeURIComponent(Date.now() + "-" + selectedFile.name)}`,
+          );
+          const { upload_url, file_name } = await urlRes.json();
+
+          setStatus("busy", "Uploading file…");
+          await fetch(upload_url, { method: "PUT", body: selectedFile });
+
+          setStatus("busy", "Processing…");
+          await pollForResult(file_name);
+        } catch (err) {
+          setStatus("fail", "Something went wrong: " + err.message);
+          uploadBtn.disabled = false;
+        }
+      });
+
+      async function pollForResult(fileName, attempts = 0) {
+        if (attempts > 15) {
+          setStatus("fail", "Processing is taking longer than expected.");
+          uploadBtn.disabled = false;
+          return;
+        }
+        const res = await fetch(`${API_BASE}/results`);
+        const items = await res.json();
+        const match = items.find((i) => i.file_name === fileName);
+
+        if (match) {
+          setStatus("done", "Done");
+          showResult(match);
+          uploadBtn.disabled = false;
+          loadRecent();
+          return;
+        }
+        setTimeout(() => pollForResult(fileName, attempts + 1), 1500);
+      }
+
+      function showResult(item) {
+        result.classList.add("show");
+        document.getElementById("rFile").textContent = item.file_name || "—";
+        document.getElementById("rSize").textContent = item.file_size_bytes
+          ? (item.file_size_bytes / 1024).toFixed(1) + " KB"
+          : "—";
+        document.getElementById("rStatus").textContent = item.status || "—";
+        document.getElementById("rText").textContent =
+          item.extracted_text || item.error_message || "No text extracted.";
+      }
+
+      async function loadRecent() {
+        recentList.innerHTML = '<div class="row-name">Loading…</div>';
+        try {
+          const res = await fetch(`${API_BASE}/results`);
+          const items = await res.json();
+          items.sort((a, b) =>
+            (b.upload_time || "").localeCompare(a.upload_time || ""),
+          );
+          recentList.innerHTML = "";
+          items.slice(0, 8).forEach((item) => {
+            const row = document.createElement("div");
+            row.className = "row";
+            row.innerHTML = `<span class="row-name">${item.file_name || "unnamed"}</span><span class="tag ${item.status}">${item.status}</span>`;
+            recentList.appendChild(row);
+          });
+          if (!items.length)
+            recentList.innerHTML =
+              '<div class="row-name">Nothing processed yet.</div>';
+        } catch (e) {
+          recentList.innerHTML =
+            '<div class="row-name">Could not load recent items.</div>';
+        }
+      }
+
+      document.getElementById("refreshLink").addEventListener("click", (e) => {
+        e.preventDefault();
+        loadRecent();
+      });
+
+      loadRecent();
+    </script>
+  </body>
+</html>
